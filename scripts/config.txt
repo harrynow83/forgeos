@@ -1,0 +1,17 @@
+# Raspberry Pi Boot Configuration for ForgeOS Kiosk Mode
+# Add these lines to /boot/config.txt
+
+# GPU Memory Allocation (optimize for UI performance)
+gpu_mem=128
+
+# Disable splash screen for faster boot
+disable_splash=1
+
+# Force HDMI mode for display
+hdmi_force_hotplug=1
+
+# Optimize for SD card performance
+dtparams=sd_overclock=100
+
+# Disable camera auto-detection if not used
+start_x=0

@@ -1,0 +1,17 @@
+[Unit]
+Description=ForgeOS Kiosk Mode Service
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+User=pi
+WorkingDirectory=/home/pi/forgOS
+ExecStart=/home/pi/start-forgeos.sh
+Restart=always
+RestartSec=10
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target

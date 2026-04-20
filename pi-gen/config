@@ -1,0 +1,18 @@
+# ForgeOS Configuration for Raspberry Pi Image Builder
+
+# Image configuration
+IMG_NAME="forgeos"
+ENABLE_SSH=1
+ENABLE_NONFREE=1
+DISABLE_BOOT_SPLASH=1
+
+# Build stages
+STAGE_LIST="stage0 stage1 stage2"
+
+# Base distribution
+BASE_DISTRO="bullseye"
+DEPLOY_DIR="deploy"
+
+# Hardware targets
+TARGET_ARCH="arm64"
+IMG_SUFFIX="lite"
