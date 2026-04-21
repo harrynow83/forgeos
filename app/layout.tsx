@@ -1,9 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
-import { PrinterProvider } from '@/lib/printer-context'
 import { AppShell } from '@/components/app-shell'
-import ToastProvider from '@/components/ToastProvider'
+import { ToastProvider } from '@/components/ToastProvider'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -52,10 +51,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-background">
       <body className="font-sans antialiased">
-        <PrinterProvider>
+        <ToastProvider>
           <AppShell>{children}</AppShell>
-        </PrinterProvider>
-        <ToastProvider />
+        </ToastProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

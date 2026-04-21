@@ -2,545 +2,128 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import {
-  ArrowUp,
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  Home,
-  ChevronUp,
-  ChevronDown,
-  Thermometer,
-  Minus,
-  Plus,
-  AlertTriangle,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
-import { usePrinter } from "@/lib/printer-context";
-import { cn } from "@/lib/utils";
-import { api } from "@/components/api";
-import { useLoading } from "@/components/useLoading";
-import { useToastStore } from "@/components/toast-store";
-
-const STEP_SIZES = [0.1, 1, 10, 50];
+import { Play, Pause, Square } from "lucide-react";
+import { StatusBar } from "@/components/StatusBar";
+import { ControlPad } from "@/components/ControlPad";
+import { TempPanel } from "@/components/TempPanel";
+import { Camera } from "@/components/Camera";
+import { FileList } from "@/components/FileList";
+import { usePrinterStore, usePrinterPolling } from "@/store/printerStore";
+import { useToast } from "@/components/ToastProvider";
 
 export default function ControlPage() {
-  const { activePrinter, moveAxis, homeAxis, extrude, setTemperature } = usePrinter();
-  const [stepSize, setStepSize] = useState(10);
-  const [extrudeAmount, setExtrudeAmount] = useState(10);
-  const { loading, setLoading } = useLoading();
-  const { add } = useToastStore();
+  usePrinterPolling()
+  const { state, progress, connected } = usePrinterStore()
+  const { toast } = useToast()
+  const [actionLoading, setActionLoading] = useState(false)
 
-  const handlePause = async () => {
+  const handlePrintAction = async (action: 'pause' | 'resume' | 'cancel') => {
+    if (actionLoading) return
+    
+    setActionLoading(true)
     try {
-      setLoading(true);
-      const res = await api("/api/printer/pause", { method: "POST" });
-      const data = await res.json();
-
-      if (data.success) {
-        add("Paused successfully");
-      } else {
-        add("Failed to pause");
-      }
-    } catch {
-      add("Network error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResume = async () => {
-    try {
-      setLoading(true);
-      const res = await api("/api/printer/resume", { method: "POST" });
-      const data = await res.json();
-
-      if (data.success) {
-        add("Resumed successfully");
-      } else {
-        add("Failed to resume");
-      }
-    } catch {
-      add("Network error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCancel = async () => {
-    try {
-      setLoading(true);
-      const res = await api("/api/printer/cancel", { method: "POST" });
-      const data = await res.json();
-
-      if (data.success) {
-        add("Cancelled successfully");
-      } else {
-        add("Failed to cancel");
-      }
-    } catch {
-      add("Network error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleHome = async (axis?: string) => {
-    try {
-      setLoading(true);
-      let res;
+      const res = await fetch(`/api/printer/${action}`, { method: 'POST' })
+      const data = await res.json()
       
-      if (axis) {
-        res = await api("/api/printer/gcode", {
-          method: "POST",
-          body: JSON.stringify({ cmd: `G28 ${axis}` })
-        });
-      } else {
-        res = await api("/api/printer/home", { method: "POST" });
-      }
-      
-      const data = await res.json();
       if (data.success) {
-        add("Homed successfully");
+        toast(`${action.charAt(0).toUpperCase() + action.slice(1)} successful`, 'success')
       } else {
-        add("Failed to home");
+        toast(`${action} failed`, 'error')
       }
-    } catch {
-      add("Network error");
+    } catch (error) {
+      toast(`${action} failed`, 'error')
     } finally {
-      setLoading(false);
+      setActionLoading(false)
     }
-  };
-
-  const handleMove = async (axis: string, value: number) => {
-    try {
-      setLoading(true);
-      const res = await api("/api/printer/move", {
-        method: "POST",
-        body: JSON.stringify({ axis, value })
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        add("Moved successfully");
-      } else {
-        add("Failed to move");
-      }
-    } catch {
-      add("Network error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSetTemp = async (type: "nozzle" | "bed", temp: number) => {
-    try {
-      setLoading(true);
-      const res = await api(`/api/printer/${type}`, {
-        method: "POST",
-        body: JSON.stringify({ temp })
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        add(`${type === "nozzle" ? "Nozzle" : "Bed"} temperature set to ${temp}°`);
-      } else {
-        add("Failed to set temperature");
-      }
-    } catch {
-      add("Network error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEmergencyStop = async () => {
-    try {
-      setLoading(true);
-      const res = await api("/api/printer/emergency", { method: "POST" });
-      const data = await res.json();
-
-      if (data.success) {
-        add("Emergency stop activated");
-      } else {
-        add("Failed to emergency stop");
-      }
-    } catch {
-      add("Network error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!activePrinter) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center px-4">
-        <div className="text-center">
-          <h2 className="mb-2 text-xl font-bold text-foreground">No Printer Connected</h2>
-          <p className="text-muted-foreground">Add a printer to access controls</p>
-        </div>
-      </div>
-    );
   }
 
   return (
-    <div className="space-y-4 p-4">
-      {/* Step Size Selector */}
-      <Card className="rounded-3xl border-border bg-card">
-        <CardContent className="p-4">
-          <p className="mb-3 text-sm font-medium text-muted-foreground">Step Size (mm)</p>
-          <div className="flex gap-2">
-            {STEP_SIZES.map((size) => (
-              <motion.button
-                key={size}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setStepSize(size)}
-                className={cn(
-                  "flex-1 rounded-xl py-3 text-sm font-semibold transition-colors",
-                  stepSize === size
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                )}
-              >
-                {size}
-              </motion.button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Axis Controls */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* XY Control */}
-        <Card className="rounded-3xl border-border bg-card">
-          <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-center text-sm font-medium text-muted-foreground">
-              X/Y Axis
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="grid grid-cols-3 gap-2">
-              <div />
-              <ControlButton
-                icon={ArrowUp}
-                onClick={() => handleMove("Y", stepSize)}
-                label="Y+"
-              />
-              <div />
-              <ControlButton
-                icon={ArrowLeft}
-                onClick={() => handleMove("X", -stepSize)}
-                label="X-"
-              />
-              <ControlButton
-                icon={Home}
-                onClick={() => handleHome()}
-                label="Home"
-                variant="secondary"
-              />
-              <ControlButton
-                icon={ArrowRight}
-                onClick={() => handleMove("X", stepSize)}
-                label="X+"
-              />
-              <div />
-              <ControlButton
-                icon={ArrowDown}
-                onClick={() => handleMove("Y", -stepSize)}
-                label="Y-"
-              />
-              <div />
+    <div className="min-h-screen bg-black">
+      <StatusBar />
+      
+      <div className="p-4 max-w-7xl mx-auto">
+        {/* Print Control Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gray-900 rounded-3xl border border-gray-800 p-4 mb-4"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${
+                state === 'printing' ? 'bg-green-500' : 
+                state === 'paused' ? 'bg-yellow-500' : 
+                state === 'ready' ? 'bg-blue-500' : 'bg-gray-500'
+              }`} />
+              <span className="text-sm font-medium text-white capitalize">
+                {state === 'printing' ? 'Printing' : 
+                 state === 'paused' ? 'Paused' : 
+                 state === 'ready' ? 'Ready' : 'Offline'}
+              </span>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Z Control */}
-        <Card className="rounded-3xl border-border bg-card">
-          <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-center text-sm font-medium text-muted-foreground">
-              Z Axis
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center gap-2 p-4 pt-0">
-            <ControlButton
-              icon={ChevronUp}
-              onClick={() => handleMove("Z", stepSize)}
-              label="Z+"
-              className="w-20"
-            />
-            <ControlButton
-              icon={Home}
-              onClick={() => handleHome("Z")}
-              label="Home Z"
-              variant="secondary"
-              className="w-20"
-            />
-            <ControlButton
-              icon={ChevronDown}
-              onClick={() => handleMove("Z", -stepSize)}
-              label="Z-"
-              className="w-20"
-            />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Extruder Controls */}
-      <Card className="rounded-3xl border-border bg-card">
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Extruder
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className="mb-4 flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Amount: {extrudeAmount}mm</span>
+            
+            <div className="flex gap-2">
+              {state === 'printing' && (
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.05 }}
+                  onClick={() => handlePrintAction('pause')}
+                  disabled={actionLoading}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg font-medium hover:bg-yellow-500 disabled:opacity-50"
+                >
+                  <Pause className="w-4 h-4 inline mr-2" />
+                  Pause
+                </motion.button>
+              )}
+              
+              {state === 'paused' && (
+                <>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.05 }}
+                    onClick={() => handlePrintAction('resume')}
+                    disabled={actionLoading}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-500 disabled:opacity-50"
+                  >
+                    <Play className="w-4 h-4 inline mr-2" />
+                    Resume
+                  </motion.button>
+                  
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.05 }}
+                    onClick={() => handlePrintAction('cancel')}
+                    disabled={actionLoading}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-500 disabled:opacity-50"
+                  >
+                    <Square className="w-4 h-4 inline mr-2" />
+                    Cancel
+                  </motion.button>
+                </>
+              )}
+            </div>
           </div>
-          <Slider
-            value={[extrudeAmount]}
-            onValueChange={([value]) => setExtrudeAmount(value)}
-            min={1}
-            max={100}
-            step={1}
-            className="mb-4"
-          />
-          <div className="flex gap-3">
-            <motion.div whileTap={{ scale: 0.95 }} className="flex-1">
-              <Button
-                onClick={() => extrude(-extrudeAmount)}
-                variant="outline"
-                disabled={loading}
-                className={cn("h-14 w-full rounded-2xl text-base", loading && "opacity-50")}
-              >
-                {loading ? "..." : <><Minus className="mr-2 h-5 w-5" />Retract</>}
-              </Button>
-            </motion.div>
-            <motion.div whileTap={{ scale: 0.95 }} className="flex-1">
-              <Button
-                onClick={() => extrude(extrudeAmount)}
-                disabled={loading}
-                className={cn("h-14 w-full rounded-2xl bg-primary text-primary-foreground text-base", loading && "opacity-50")}
-              >
-                {loading ? "..." : <><Plus className="mr-2 h-5 w-5" />Extrude</>}
-              </Button>
-            </motion.div>
+        </motion.div>
+
+        {/* Main Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Left Column - Camera */}
+          <div className="lg:col-span-1">
+            <Camera />
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Temperature Controls */}
-      <Card className="rounded-3xl border-border bg-card">
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Thermometer className="h-4 w-4" />
-            Temperature
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6 p-4 pt-0">
-          <TemperatureSlider
-            label="Nozzle"
-            current={activePrinter.hotendTemp}
-            target={activePrinter.hotendTarget}
-            max={300}
-            color="text-destructive"
-            onChange={(value) => handleSetTemp("nozzle", value)}
-          />
-          <TemperatureSlider
-            label="Bed"
-            current={activePrinter.bedTemp}
-            target={activePrinter.bedTarget}
-            max={120}
-            color="text-accent"
-            onChange={(value) => handleSetTemp("bed", value)}
-          />
-          <TemperatureSlider
-            label="Chamber"
-            current={activePrinter.chamberTemp}
-            target={activePrinter.chamberTarget}
-            max={80}
-            color="text-chart-5"
-            onChange={(value) => handleSetTemp("nozzle", value)}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Quick Temperature Presets */}
-      <Card className="rounded-3xl border-border bg-card">
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Presets
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className="grid grid-cols-3 gap-2">
-            <PresetButton
-              label="PLA"
-              onClick={() => {
-                handleSetTemp("nozzle", 210);
-                handleSetTemp("bed", 60);
-              }}
-            />
-            <PresetButton
-              label="PETG"
-              onClick={() => {
-                handleSetTemp("nozzle", 240);
-                handleSetTemp("bed", 80);
-              }}
-            />
-            <PresetButton
-              label="ABS"
-              onClick={() => {
-                handleSetTemp("nozzle", 250);
-                handleSetTemp("bed", 100);
-              }}
-            />
-            <PresetButton
-              label="TPU"
-              onClick={() => {
-                handleSetTemp("nozzle", 230);
-                handleSetTemp("bed", 50);
-              }}
-            />
-            <PresetButton
-              label="Cooldown"
-              onClick={() => {
-                handleSetTemp("nozzle", 0);
-                handleSetTemp("bed", 0);
-              }}
-              variant="outline"
-            />
-            <PresetButton
-              label="Preheat"
-              onClick={() => {
-                handleSetTemp("nozzle", 200);
-                handleSetTemp("bed", 60);
-              }}
-            />
+          {/* Middle Column - Controls */}
+          <div className="lg:col-span-1 space-y-4">
+            <ControlPad />
+            <TempPanel />
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Emergency Stop */}
-      <Card className="rounded-3xl border-2 border-destructive/20 bg-destructive/5">
-        <CardContent className="p-4">
-          <motion.div whileTap={{ scale: 0.95 }} className="w-full">
-            <Button
-              onClick={handleEmergencyStop}
-              disabled={loading}
-              variant="destructive"
-              className={cn("h-14 w-full rounded-2xl text-base font-semibold", loading && "opacity-50")}
-            >
-              {loading ? "..." : <><AlertTriangle className="mr-2 h-5 w-5" />EMERGENCY STOP</>}
-            </Button>
-          </motion.div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-interface ControlButtonProps {
-  icon: React.ComponentType<{ className?: string }>;
-  onClick: () => void;
-  label: string;
-  variant?: "default" | "secondary";
-  className?: string;
-}
-
-function ControlButton({
-  icon: Icon,
-  onClick,
-  label,
-  variant = "default",
-  className,
-}: ControlButtonProps) {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.95 }}
-      onClick={onClick}
-      className={cn(
-        "flex h-16 flex-col items-center justify-center rounded-2xl transition-colors",
-        variant === "default"
-          ? "bg-secondary hover:bg-secondary/80"
-          : "bg-primary/10 text-primary hover:bg-primary/20",
-        className
-      )}
-      aria-label={label}
-    >
-      <Icon className="h-6 w-6" />
-    </motion.button>
-  );
-}
-
-interface TemperatureSliderProps {
-  label: string;
-  current: number;
-  target: number;
-  max: number;
-  color: string;
-  onChange: (value: number) => void;
-}
-
-function TemperatureSlider({
-  label,
-  current,
-  target,
-  max,
-  color,
-  onChange,
-}: TemperatureSliderProps) {
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-medium text-foreground">{label}</span>
-        <div className="flex items-center gap-2">
-          <span className={cn("text-sm font-bold", color)}>{Math.round(current)}°C</span>
-          <span className="text-xs text-muted-foreground">/ {target}°C</span>
+          {/* Right Column - Files */}
+          <div className="lg:col-span-1">
+            <FileList />
+          </div>
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        <Slider
-          value={[target]}
-          onValueChange={([value]) => onChange(value)}
-          min={0}
-          max={max}
-          step={5}
-          className="flex-1"
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 w-12 rounded-lg text-xs"
-          onClick={() => onChange(0)}
-        >
-          Off
-        </Button>
-      </div>
     </div>
-  );
-}
-
-interface PresetButtonProps {
-  label: string;
-  onClick: () => void;
-  variant?: "default" | "outline";
-}
-
-function PresetButton({ label, onClick, variant = "default" }: PresetButtonProps) {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.95 }}
-      onClick={onClick}
-      className={cn(
-        "h-12 rounded-xl text-sm font-medium transition-colors",
-        variant === "default"
-          ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-          : "border border-border bg-transparent text-foreground hover:bg-secondary"
-      )}
-    >
-      {label}
-    </motion.button>
-  );
+  )
 }

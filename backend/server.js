@@ -5,8 +5,8 @@ import path from "path"
 import { exec } from "child_process"
 import { fileURLToPath } from 'url'
 import QRCode from 'qrcode'
-import multer from 'multer'
-import FormData from 'form-data'
+import multer from "multer"
+import FormData from "form-data"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -14,9 +14,33 @@ app.use(cors())
 app.use(express.json())
 
 const MOONRAKER = "http://localhost:7125"
+const CAMERA_STREAM = "http://localhost:8080/stream"
 const uploadDir = path.join(__dirname, "uploads")
 fs.mkdirSync(uploadDir, { recursive: true })
 const upload = multer({ dest: uploadDir })
+
+// Response helpers
+function ok(res, data = {}) {
+  res.json({ success: true, ...data })
+}
+
+function fail(res, error, status = 500) {
+  res.status(status).json({ success: false, error })
+}
+
+// Optional auth middleware
+function authMiddleware(req, res, next) {
+  if (process.env.ENABLE_AUTH === 'true') {
+    const apiKey = req.headers['x-api-key']
+    if (!apiKey || apiKey !== process.env.API_KEY) {
+      return fail(res, 'Unauthorized', 401)
+    }
+  }
+  next()
+}
+
+// Apply auth to all endpoints
+app.use(authMiddleware)
 
 // ============================================
 // HOTSPOT MANAGEMENT
@@ -135,14 +159,15 @@ app.get("/api/printer/status", async (req, res) => {
     const r = await fetch(`${MOONRAKER}/printer/objects/query?print_stats&extruder&heater_bed`);
     const j = await r.json();
 
-    res.json({
+    ok(res, {
       state: j.result.status.print_stats.state,
       progress: j.result.status.print_stats.progress || 0,
       nozzle: j.result.status.extruder.temperature || 0,
       bed: j.result.status.heater_bed.temperature || 0
     });
-  } catch {
-    res.json({ state: "offline", progress: 0, nozzle: 0, bed: 0 });
+  } catch (err) {
+    console.error("Failed to get printer status:", err);
+    ok(res, { state: "offline", progress: 0, nozzle: 0, bed: 0 });
   }
 })
 
@@ -154,10 +179,10 @@ app.get("/api/files", async (req, res) => {
   try {
     const response = await fetch(`${MOONRAKER}/server/files/list`)
     const json = await response.json()
-    res.json(json.result)
+    ok(res, { files: json.result })
   } catch (err) {
     console.error("Failed to list files:", err)
-    res.status(500).json({ error: "Failed to list files" })
+    fail(res, "Failed to list files")
   }
 })
 
@@ -165,7 +190,7 @@ app.post("/api/files/upload", upload.single("file"), async (req, res) => {
   try {
     const file = req.file
     if (!file) {
-      return res.status(400).json({ success: false, error: "No file uploaded" })
+      return fail(res, "No file uploaded", 400)
     }
 
     const form = new FormData()
@@ -183,15 +208,14 @@ app.post("/api/files/upload", upload.single("file"), async (req, res) => {
         throw new Error(data || response.statusText)
       }
     } catch (moonrakerErr) {
-      // Development mode: Moonraker not available, but upload logic works
       console.log("Moonraker not available - development mode, file processed successfully")
     }
 
     fs.unlink(file.path, () => {})
-    res.json({ success: true })
+    ok(res)
   } catch (err) {
     console.error("Failed to upload file:", err)
-    res.status(500).json({ success: false, error: "Upload failed" })
+    fail(res, "Upload failed")
   }
 })
 
@@ -199,7 +223,7 @@ app.post("/api/printer/start", async (req, res) => {
   try {
     const { filename } = req.body
     if (!filename) {
-      return res.status(400).json({ success: false, error: "Filename required" })
+      return fail(res, "Filename required", 400)
     }
 
     const response = await fetch(`${MOONRAKER}/printer/print/start?filename=${encodeURIComponent(filename)}`, {
@@ -211,40 +235,40 @@ app.post("/api/printer/start", async (req, res) => {
       throw new Error(data || response.statusText)
     }
 
-    res.json({ success: true })
+    ok(res)
   } catch (err) {
     console.error("Failed to start print:", err)
-    res.status(500).json({ success: false, error: "Start print failed" })
+    fail(res, "Start print failed")
   }
 })
 
 app.post("/api/printer/pause", async (req, res) => {
   try {
     await fetch(`${MOONRAKER}/printer/print/pause`, { method: "POST" });
-    res.json({ success: true });
+    ok(res);
   } catch (err) {
     console.error("Failed to pause print:", err);
-    res.status(500).json({ success: false, error: "Pause print failed" });
+    fail(res, "Pause print failed");
   }
 });
 
 app.post("/api/printer/resume", async (req, res) => {
   try {
     await fetch(`${MOONRAKER}/printer/print/resume`, { method: "POST" });
-    res.json({ success: true });
+    ok(res);
   } catch (err) {
     console.error("Failed to resume print:", err);
-    res.status(500).json({ success: false, error: "Resume print failed" });
+    fail(res, "Resume print failed");
   }
 });
 
 app.post("/api/printer/cancel", async (req, res) => {
   try {
     await fetch(`${MOONRAKER}/printer/print/cancel`, { method: "POST" });
-    res.json({ success: true });
+    ok(res);
   } catch (err) {
     console.error("Failed to cancel print:", err);
-    res.status(500).json({ success: false, error: "Cancel print failed" });
+    fail(res, "Cancel print failed");
   }
 });
 
@@ -255,38 +279,38 @@ app.post("/api/printer/gcode", async (req, res) => {
   try {
     const { cmd } = req.body;
     if (!cmd) {
-      return res.status(400).json({ success: false, error: "Command required" });
+      return fail(res, "Command required", 400);
     }
 
     await fetch(`${MOONRAKER}/printer/gcode/script?script=${encodeURIComponent(cmd)}`, {
       method: "POST"
     });
 
-    res.json({ success: true });
+    ok(res);
   } catch (err) {
     console.error("Failed to execute G-code:", err);
-    res.status(500).json({ success: false, error: "G-code execution failed" });
+    fail(res, "G-code execution failed");
   }
 });
 
 /* =========================
-   TEMPERATURE CONTROL
+   TEMPERATURE CONTROL (KLIPPER-NATIVE)
 ========================= */
 app.post("/api/printer/nozzle", async (req, res) => {
   try {
     const { temp } = req.body;
     if (temp === undefined) {
-      return res.status(400).json({ success: false, error: "Temperature required" });
+      return fail(res, "Temperature required", 400);
     }
 
-    await fetch(`${MOONRAKER}/printer/gcode/script?script=M104 S${temp}`, {
+    await fetch(`${MOONRAKER}/printer/gcode/script?script=SET_HEATER_TEMPERATURE HEATER=extruder TARGET=${temp}`, {
       method: "POST"
     });
 
-    res.json({ success: true });
+    ok(res);
   } catch (err) {
     console.error("Failed to set nozzle temperature:", err);
-    res.status(500).json({ success: false, error: "Nozzle temperature control failed" });
+    fail(res, "Nozzle temperature control failed");
   }
 });
 
@@ -294,22 +318,22 @@ app.post("/api/printer/bed", async (req, res) => {
   try {
     const { temp } = req.body;
     if (temp === undefined) {
-      return res.status(400).json({ success: false, error: "Temperature required" });
+      return fail(res, "Temperature required", 400);
     }
 
-    await fetch(`${MOONRAKER}/printer/gcode/script?script=M140 S${temp}`, {
+    await fetch(`${MOONRAKER}/printer/gcode/script?script=SET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=${temp}`, {
       method: "POST"
     });
 
-    res.json({ success: true });
+    ok(res);
   } catch (err) {
     console.error("Failed to set bed temperature:", err);
-    res.status(500).json({ success: false, error: "Bed temperature control failed" });
+    fail(res, "Bed temperature control failed");
   }
 });
 
 /* =========================
-   MOVEMENT CONTROL
+   MOVEMENT CONTROL (SAFE)
 ========================= */
 app.post("/api/printer/home", async (req, res) => {
   try {
@@ -317,10 +341,10 @@ app.post("/api/printer/home", async (req, res) => {
       method: "POST"
     });
 
-    res.json({ success: true });
+    ok(res);
   } catch (err) {
     console.error("Failed to home printer:", err);
-    res.status(500).json({ success: false, error: "Home command failed" });
+    fail(res, "Home command failed");
   }
 });
 
@@ -328,17 +352,46 @@ app.post("/api/printer/move", async (req, res) => {
   try {
     const { axis, value } = req.body;
     if (!axis || value === undefined) {
-      return res.status(400).json({ success: false, error: "Axis and value required" });
+      return fail(res, "Axis and value required", 400);
     }
 
-    await fetch(`${MOONRAKER}/printer/gcode/script?script=G1 ${axis}${value}`, {
+    const speed = 3000;
+    const gcode = `G91\nG1 ${axis}${value} F${speed}\nG90`;
+
+    await fetch(`${MOONRAKER}/printer/gcode/script?script=${encodeURIComponent(gcode)}`, {
       method: "POST"
     });
 
-    res.json({ success: true });
+    ok(res);
   } catch (err) {
     console.error("Failed to move printer:", err);
-    res.status(500).json({ success: false, error: "Move command failed" });
+    fail(res, "Move command failed");
+  }
+});
+
+app.post("/api/printer/jog", async (req, res) => {
+  try {
+    const { x, y, z, speed = 3000 } = req.body;
+    
+    let moves = [];
+    if (x !== undefined) moves.push(`X${x}`);
+    if (y !== undefined) moves.push(`Y${y}`);
+    if (z !== undefined) moves.push(`Z${z}`);
+    
+    if (moves.length === 0) {
+      return fail(res, "At least one axis required", 400);
+    }
+
+    const gcode = `G91\nG1 ${moves.join(' ')} F${speed}\nG90`;
+
+    await fetch(`${MOONRAKER}/printer/gcode/script?script=${encodeURIComponent(gcode)}`, {
+      method: "POST"
+    });
+
+    ok(res);
+  } catch (err) {
+    console.error("Failed to jog printer:", err);
+    fail(res, "Jog command failed");
   }
 });
 
@@ -349,18 +402,25 @@ app.post("/api/files/delete", async (req, res) => {
   try {
     const { path } = req.body;
     if (!path) {
-      return res.status(400).json({ success: false, error: "File path required" });
+      return fail(res, "File path required", 400);
     }
 
     await fetch(`${MOONRAKER}/server/files/delete?path=${encodeURIComponent(path)}`, {
       method: "POST"
     });
 
-    res.json({ success: true });
+    ok(res);
   } catch (err) {
     console.error("Failed to delete file:", err);
-    res.status(500).json({ success: false, error: "File deletion failed" });
+    fail(res, "File deletion failed");
   }
+});
+
+/* =========================
+   CAMERA ENDPOINT
+========================= */
+app.get("/api/camera", (req, res) => {
+  res.redirect(CAMERA_STREAM);
 });
 
 /* =========================
@@ -370,30 +430,30 @@ app.get("/api/system/info", async (req, res) => {
   try {
     const r = await fetch(`${MOONRAKER}/server/info`);
     const j = await r.json();
-    res.json(j.result);
+    ok(res, { info: j.result });
   } catch (err) {
     console.error("Failed to get system info:", err);
-    res.status(500).json({ error: "Failed to get system info" });
+    fail(res, "Failed to get system info");
   }
 });
 
 app.post("/api/system/restart", async (req, res) => {
   try {
     await fetch(`${MOONRAKER}/machine/reboot`, { method: "POST" });
-    res.json({ success: true });
+    ok(res);
   } catch (err) {
     console.error("Failed to restart system:", err);
-    res.status(500).json({ success: false, error: "System restart failed" });
+    fail(res, "System restart failed");
   }
 });
 
 app.post("/api/system/shutdown", async (req, res) => {
   try {
     await fetch(`${MOONRAKER}/machine/shutdown`, { method: "POST" });
-    res.json({ success: true });
+    ok(res);
   } catch (err) {
     console.error("Failed to shutdown system:", err);
-    res.status(500).json({ success: false, error: "System shutdown failed" });
+    fail(res, "System shutdown failed");
   }
 });
 
@@ -406,12 +466,15 @@ app.post("/api/printer/emergency", async (req, res) => {
       method: "POST"
     });
 
-    res.json({ success: true });
+    ok(res);
   } catch (err) {
     console.error("Failed to emergency stop:", err);
-    res.status(500).json({ success: false, error: "Emergency stop failed" });
+    fail(res, "Emergency stop failed");
   }
 });
+
+// TODO: integrate Moonraker WebSocket for real-time updates
+// ws://localhost:7125/websocket
 
 // ============================================
 // WIFI CONNECT - with hotspot stopping
@@ -421,7 +484,7 @@ app.post("/api/wifi", (req, res) => {
   const { ssid, password } = req.body
 
   if (!ssid) {
-    return res.status(400).json({ success: false })
+    return fail(res, "SSID required", 400)
   }
 
   const cmd = password
@@ -430,25 +493,19 @@ app.post("/api/wifi", (req, res) => {
 
   exec(cmd, (err) => {
     if (err) {
-      return res.status(500).json({
-        success: false,
-        error: "Connection failed",
-      })
+      return fail(res, "Connection failed")
     }
 
-    // Connection successful - stop hotspot and create setup_done file
     stopHotspot()
     
-    // Create setup_done file
     const setupDoneFile = path.join(__dirname, "setup_done")
     fs.writeFileSync(setupDoneFile, "true")
     
     console.log("WiFi connection successful. Setup marked as complete.")
     
-    res.json({ success: true })
+    ok(res)
   })
 })
-
 
 // ============================================
 // QR CODE ENDPOINT
@@ -457,10 +514,10 @@ app.post("/api/wifi", (req, res) => {
 app.get("/api/qr", async (req, res) => {
   try {
     const qrCode = await QRCode.toDataURL(`http://${HOTSPOT_IP}`)
-    res.json({ success: true, qr: qrCode })
+    ok(res, { qr: qrCode })
   } catch (err) {
     console.error("Failed to generate QR code:", err)
-    res.status(500).json({ success: false, error: "Failed to generate QR code" })
+    fail(res, "Failed to generate QR code")
   }
 })
 
@@ -471,15 +528,9 @@ app.get("/api/qr", async (req, res) => {
 app.get("/api/status", (req, res) => {
   try {
     const setupComplete = fs.existsSync(path.join(__dirname, "setup_done"))
-    res.json({
-      setup: setupComplete,
-      timestamp: new Date().toISOString()
-    })
+    ok(res, { setup: setupComplete, timestamp: new Date().toISOString() })
   } catch (err) {
-    res.json({
-      setup: false,
-      timestamp: new Date().toISOString()
-    })
+    ok(res, { setup: false, timestamp: new Date().toISOString() })
   }
 })
 
@@ -488,12 +539,11 @@ app.post("/api/setup_done", (req, res) => {
     const setupDoneFile = path.join(__dirname, "setup_done")
     fs.writeFileSync(setupDoneFile, "true")
     
-    // Stop hotspot when setup is marked as complete
     stopHotspot()
     
-    res.json({ success: true })
+    ok(res)
   } catch (err) {
-    res.status(500).json({ success: false })
+    fail(res, "Setup completion failed")
   }
 })
 
@@ -505,24 +555,19 @@ let updateInProgress = false
 let updateStatus = { updating: false, progress: 0, message: "" }
 
 app.get("/api/update/status", (req, res) => {
-  res.json({ ...updateStatus })
+  ok(res, updateStatus)
 })
 
 app.post("/api/update", (req, res) => {
   if (updateInProgress) {
-    return res.status(400).json({
-      success: false,
-      error: "Update already in progress"
-    })
+    return fail(res, "Update already in progress", 400)
   }
 
   updateInProgress = true
   updateStatus = { updating: true, progress: 0, message: "Starting update..." }
 
-  // Send immediate response
-  res.json({ success: true, message: "Update started" })
+  ok(res, { message: "Update started" })
 
-  // Execute update script in background
   const updateScript = path.join(__dirname, "./update.sh")
   
   exec(`bash ${updateScript}`, { cwd: __dirname }, (err, stdout, stderr) => {
@@ -548,7 +593,6 @@ app.post("/api/update", (req, res) => {
       }
       updateInProgress = false
       
-      // Restart the application after a short delay
       setTimeout(() => {
         process.exit(0)
       }, 3000)
@@ -564,30 +608,45 @@ let printers = [];
 
 /* LIST PRINTERS */
 app.get("/api/printers", (req, res) => {
-  res.json(printers);
+  ok(res, { printers });
 });
 
 /* ADD PRINTER */
 app.post("/api/printers", (req, res) => {
-  const { name, host } = req.body;
+  try {
+    const { name, host } = req.body;
+    if (!name || !host) {
+      return fail(res, "Name and host required", 400);
+    }
 
-  const printer = { id: Date.now(), name, host };
-  printers.push(printer);
+    const printer = { id: Date.now(), name, host };
+    printers.push(printer);
 
-  res.json(printer);
+    ok(res, { printer });
+  } catch (err) {
+    console.error("Failed to add printer:", err);
+    fail(res, "Failed to add printer");
+  }
 });
 
 /* DELETE PRINTER */
 app.post("/api/printers/delete", (req, res) => {
-  const { id } = req.body;
-  printers = printers.filter(p => p.id !== id);
-  res.json({ success: true });
+  try {
+    const { id } = req.body;
+    if (!id) {
+      return fail(res, "Printer ID required", 400);
+    }
+    
+    printers = printers.filter(p => p.id !== id);
+    ok(res);
+  } catch (err) {
+    console.error("Failed to delete printer:", err);
+    fail(res, "Failed to delete printer");
+  }
 });
 
 /* LAN SCAN */
 app.get("/api/printers/scan", async (req, res) => {
-  const { exec } = require("child_process");
-  
   try {
     const { stdout } = await new Promise((resolve, reject) => {
       exec("arp -a", (err, stdout) => {
@@ -597,16 +656,15 @@ app.get("/api/printers/scan", async (req, res) => {
     });
 
     const ips = stdout.match(/\d+\.\d+\.\d+\.\d+/g) || [];
-
     const results = ips.map(ip => ({
       name: "Printer",
       host: `http://${ip}:7125` 
     }));
 
-    res.json(results);
+    ok(res, { printers: results });
   } catch (err) {
     console.error("LAN scan failed:", err);
-    res.json([]);
+    ok(res, { printers: [] });
   }
 });
 
