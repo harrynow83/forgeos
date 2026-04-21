@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { usePrinter } from "@/lib/printer-context";
+import { usePrinter } from "@/store/printerStore";
 import { updateSystem, getUpdateStatus, UpdateStatus } from "@/lib/api";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
@@ -61,7 +61,7 @@ export default function SettingsPage() {
 
   const handleAddPrinter = () => {
     if (newPrinterName && newPrinterUrl) {
-      addPrinter(newPrinterName, newPrinterUrl);
+      addPrinter({ name: newPrinterName, host: newPrinterUrl, status: "offline" });
       setNewPrinterName("");
       setNewPrinterUrl("");
       setShowAddPrinter(false);
@@ -156,7 +156,7 @@ export default function SettingsPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="truncate font-medium text-foreground">{printer.name}</p>
-                <p className="truncate text-xs text-muted-foreground">{printer.url}</p>
+                <p className="truncate text-xs text-muted-foreground">{printer.host}</p>
               </div>
               <Button
                 variant="ghost"

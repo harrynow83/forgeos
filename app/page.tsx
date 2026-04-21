@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Thermometer, Clock, Layers, Camera, Play, Pause, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { usePrinter } from "@/lib/printer-context";
+import { usePrinter } from "@/store/printerStore";
 import { cn } from "@/lib/utils";
 import useStatus from "@/hooks/use-status";
 import { useNetwork } from "@/hooks/useNetwork";
@@ -154,7 +154,7 @@ export default function HomePage() {
             <div className="mb-3 flex items-center justify-between">
               <span className="text-sm font-medium text-muted-foreground">Print Progress</span>
               <span className="text-2xl font-bold text-primary">
-                {Math.round(activePrinter.progress)}%
+                {Math.round(activePrinter.progress || 0)}%
               </span>
             </div>
             <div className="h-3 overflow-hidden rounded-full bg-secondary">
@@ -179,7 +179,7 @@ export default function HomePage() {
             </div>
             <p className="text-xs text-muted-foreground">Time Remaining</p>
             <p className="text-xl font-bold text-foreground">
-              {isPrinting || isPaused ? formatTime(activePrinter.timeRemaining) : "--:--"}
+              {isPrinting || isPaused && activePrinter.timeRemaining ? formatTime(activePrinter.timeRemaining) : "--:--"}
             </p>
           </CardContent>
         </Card>

@@ -2,19 +2,96 @@
 
 import { create } from "zustand";
 
-export const usePrinter = create((set) => ({
+interface Printer {
+  id: string;
+  name: string;
+  host: string;
+  status: "idle" | "printing" | "paused" | "offline";
+  progress?: number;
+  currentFile?: string;
+  timeRemaining?: number;
+  layer?: number;
+  totalLayers?: number;
+  url?: string;
+}
+
+interface PrinterFile {
+  id: string;
+  name: string;
+  size: number;
+  modified: string;
+  estimatedTime?: number;
+}
+
+interface PrinterStore {
+  state: "idle" | "printing" | "paused" | "offline";
+  progress: number;
+  nozzle: number;
+  bed: number;
+  printers: Printer[];
+  activePrinter: Printer;
+  files: PrinterFile[];
+  pausePrint: () => Promise<void>;
+  resumePrint: () => Promise<void>;
+  cancelPrint: () => Promise<void>;
+  startPrint: (filename: string) => Promise<void>;
+  completeSetup: () => Promise<void>;
+  setActivePrinter: (printer: Printer) => void;
+  addPrinter: (printer: Omit<Printer, "id">) => void;
+  removePrinter: (id: string) => void;
+  setData: (data: Partial<PrinterStore>) => void;
+}
+
+export const usePrinter = create<PrinterStore>((set, get) => ({
   state: "idle",
   progress: 0,
   nozzle: 0,
   bed: 0,
-
+  printers: [] as Printer[],
   activePrinter: {
-    status: "idle",
+    id: "",
+    name: "",
+    host: "",
+    status: "idle" as const,
   },
+  files: [] as PrinterFile[],
 
   pausePrint: async () => {
     await fetch("/api/printer/pause", { method: "POST" });
   },
 
-  setData: (data: any) => set(data),
+  resumePrint: async () => {
+    await fetch("/api/printer/resume", { method: "POST" });
+  },
+
+  cancelPrint: async () => {
+    await fetch("/api/printer/cancel", { method: "POST" });
+  },
+
+  startPrint: async (filename: string) => {
+    await fetch("/api/printer/start", { 
+      method: "POST", 
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename })
+    });
+  },
+
+  completeSetup: async () => {
+    await fetch("/api/setup_done", { method: "POST" });
+  },
+
+  setActivePrinter: (printer: Printer) => {
+    set({ activePrinter: printer });
+  },
+
+  addPrinter: (printer: Omit<Printer, "id">) => {
+    const newPrinter = { ...printer, id: Date.now().toString() };
+    set((state) => ({ printers: [...state.printers, newPrinter] }));
+  },
+
+  removePrinter: (id: string) => {
+    set((state) => ({ printers: state.printers.filter((p) => p.id !== id) }));
+  },
+
+  setData: (data) => set((state) => ({ ...state, ...data })),
 }));

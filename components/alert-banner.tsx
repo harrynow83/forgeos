@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { usePrinter } from "@/lib/printer-context";
+import { usePrinter } from "@/store/printerStore";
 
 export function AlertBanner() {
   const { pausePrint, activePrinter } = usePrinter();

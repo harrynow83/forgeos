@@ -7,7 +7,7 @@ import { BottomNav } from "./bottom-nav";
 import { PrinterSelector } from "./printer-selector";
 import { AlertBanner } from "./alert-banner";
 import TopBar from "./topbar";
-import { usePrinter } from "@/lib/printer-context";
+import { usePrinter } from "@/store/printerStore";
 import { getSystemStatus } from "@/lib/api";
 
 interface AppShellProps {

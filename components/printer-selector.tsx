@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Printer, Plus, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { usePrinter } from "@/lib/printer-context";
+import { usePrinter } from "@/store/printerStore";
 import { cn } from "@/lib/utils";
 
 export function PrinterSelector() {
@@ -70,7 +70,7 @@ export function PrinterSelector() {
                     key={printer.id}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => {
-                      setActivePrinter(printer.id);
+                      setActivePrinter(printer);
                       setIsOpen(false);
                     }}
                     className={cn(
@@ -98,7 +98,7 @@ export function PrinterSelector() {
                         )}
                         <span className="capitalize">{printer.status}</span>
                         {printer.status === "printing" && (
-                          <span className="text-primary">({Math.round(printer.progress)}%)</span>
+                          <span className="text-primary">({Math.round(printer.progress || 0)}%)</span>
                         )}
                       </div>
                     </div>
