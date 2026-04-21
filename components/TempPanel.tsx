@@ -2,11 +2,11 @@
 
 import { motion } from 'framer-motion'
 import { useState } from 'react'
-import { usePrinterStore } from '@/store/printerStore'
+import { usePrinter } from '@/store/printerStore'
 import { Thermometer, Snowflake } from 'lucide-react'
 
 export function TempPanel() {
-  const { nozzleTemp, bedTemp } = usePrinterStore()
+  const { nozzle: nozzleTemp, bed: bedTemp } = usePrinter()
   const [nozzleTarget, setNozzleTarget] = useState('')
   const [bedTarget, setBedTarget] = useState('')
   const [setting, setSetting] = useState(false)

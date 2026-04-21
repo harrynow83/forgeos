@@ -24,10 +24,12 @@ interface PrinterFile {
 }
 
 interface PrinterStore {
-  state: "idle" | "printing" | "paused" | "offline";
+  state: "idle" | "printing" | "paused" | "offline" | "ready" | "error";
   progress: number;
-  nozzle: number;
-  bed: number;
+  nozzleTemp: number;
+  bedTemp: number;
+  connected: boolean;
+  loading: boolean;
   printers: Printer[];
   activePrinter: Printer;
   files: PrinterFile[];
@@ -43,10 +45,12 @@ interface PrinterStore {
 }
 
 export const usePrinter = create<PrinterStore>((set, get) => ({
-  state: "idle",
+  state: "ready",
   progress: 0,
-  nozzle: 0,
-  bed: 0,
+  nozzleTemp: 0,
+  bedTemp: 0,
+  connected: false,
+  loading: false,
   printers: [] as Printer[],
   activePrinter: {
     id: "",

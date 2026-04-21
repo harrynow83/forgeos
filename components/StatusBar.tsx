@@ -1,11 +1,11 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { usePrinterStore } from '@/store/printerStore'
+import { usePrinter } from '@/store/printerStore'
 import { Activity, Thermometer, Wifi } from 'lucide-react'
 
 export function StatusBar() {
-  const { state, progress, nozzleTemp, bedTemp, connected, loading } = usePrinterStore()
+  const { state, progress, nozzleTemp, bedTemp, connected, loading } = usePrinter()
 
   const getStateColor = () => {
     switch (state) {
