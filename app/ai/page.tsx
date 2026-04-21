@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { usePrinter } from "@/lib/printer-context";
+import { usePrinter } from "@/store/printerStore";
 import { cn } from "@/lib/utils";
 
 interface Alert {
