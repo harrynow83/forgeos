@@ -6,9 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { BottomNav } from "./bottom-nav";
 import { PrinterSelector } from "./printer-selector";
 import { AlertBanner } from "./alert-banner";
+import { OfflineBanner } from "./OfflineBanner";
 import TopBar from "./topbar";
-import { usePrinter } from "@/store/printerStore";
-import { getSystemStatus } from "@/lib/api";
+import { usePrinterStore } from "@/store/printerStore";
+import { useWebSocketSync } from "@/hooks/useWebSocketSync";
 
 interface AppShellProps {
   children: ReactNode;
@@ -17,9 +18,12 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { completeSetup } = usePrinter();
+  const completeSetup = usePrinterStore((state) => state.completeSetup);
   const isSetupPage = pathname.startsWith("/setup");
   const [isCheckingSetup, setIsCheckingSetup] = useState(true);
+
+  // Initialize WebSocket for real-time updates
+  useWebSocketSync();
 
   // Simple setup detection using backend endpoint
   useEffect(() => {
@@ -68,6 +72,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <TopBar />
+      <OfflineBanner />
       <header className="border-b border-border bg-card/95 backdrop-blur-lg safe-area-pt">
         <div className="flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-3">

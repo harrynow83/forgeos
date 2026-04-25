@@ -4,11 +4,13 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Printer, Plus, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { usePrinter } from "@/store/printerStore";
+import { usePrinterStore } from "@/store/printerStore";
 import { cn } from "@/lib/utils";
 
 export function PrinterSelector() {
-  const { printers, activePrinter, setActivePrinter } = usePrinter();
+  const printers = usePrinterStore((s) => s.printers)
+  const activePrinter = usePrinterStore((s) => s.activePrinter)
+  const setActivePrinter = usePrinterStore((s) => s.setActivePrinter)
   const [isOpen, setIsOpen] = useState(false);
 
   const getStatusColor = (status: string) => {

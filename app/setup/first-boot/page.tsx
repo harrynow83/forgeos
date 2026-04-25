@@ -26,7 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { usePrinter } from "@/store/printerStore";
+import { usePrinterStore } from "@/store/printerStore";
 import { cn } from "@/lib/utils";
 import {
   scanWifiNetworks,
@@ -40,7 +40,8 @@ type Step = "welcome" | "wifi" | "reconnect" | "printer" | "connecting" | "compl
 
 export default function FirstBootSetupPage() {
   const router = useRouter();
-  const { completeSetup, addPrinter } = usePrinter();
+  const completeSetup = usePrinterStore((s) => s.completeSetup);
+  const addPrinter = usePrinterStore((s) => s.addPrinter);
 
   const [step, setStep] = useState<Step>("welcome");
   const [networks, setNetworks] = useState<WifiNetwork[]>([]);

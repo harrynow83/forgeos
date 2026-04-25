@@ -49,7 +49,8 @@ const mockAlerts: Alert[] = [
 ];
 
 export default function AIPage() {
-  const { activePrinter, pausePrint } = usePrinter();
+  const activePrinter = usePrinterStore((s) => s.activePrinter);
+  const pausePrint = usePrinterStore((s) => s.pausePrint);
   const [aiEnabled, setAiEnabled] = useState(true);
   const [autoPause, setAutoPause] = useState(true);
   const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);

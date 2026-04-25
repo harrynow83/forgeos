@@ -4,10 +4,11 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { usePrinter } from "@/store/printerStore";
+import { usePrinterStore } from "@/store/printerStore";
 
 export function AlertBanner() {
-  const { pausePrint, activePrinter } = usePrinter();
+  const pausePrint = usePrinterStore((s) => s.pausePrint)
+  const activePrinter = usePrinterStore((s) => s.activePrinter)
   const [alerts, setAlerts] = useState<{ id: string; message: string; type: "warning" | "error" }[]>([
     // Demo alert - in production this would come from AI detection
     // { id: "1", message: "Potential spaghetti detected on layer 45", type: "warning" },

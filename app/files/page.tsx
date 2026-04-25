@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import UploadInput from "@/components/upload";
-import { usePrinter } from "@/store/printerStore";
+import { usePrinterStore } from "@/store/printerStore";
 import { cn } from "@/lib/utils";
 import { api } from "@/components/api";
 import { useLoading } from "@/components/useLoading";
@@ -39,7 +39,9 @@ function formatDuration(seconds: number): string {
 type SortBy = "name" | "date" | "size" | "duration";
 
 export default function FilesPage() {
-  const { files, startPrint, activePrinter } = usePrinter();
+  const files = usePrinterStore((s) => s.files)
+  const startPrint = usePrinterStore((s) => s.startPrint)
+  const activePrinter = usePrinterStore((s) => s.activePrinter)
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("date");
   const [selectedFile, setSelectedFile] = useState<string | null>(null);

@@ -8,11 +8,12 @@ import { ControlPad } from "@/components/ControlPad";
 import { TempPanel } from "@/components/TempPanel";
 import { Camera } from "@/components/Camera";
 import { FileList } from "@/components/FileList";
-import { usePrinter } from "@/store/printerStore";
+import { usePrinterStore } from "@/store/printerStore";
 import { useToast } from "@/components/ToastProvider";
 
 export default function ControlPage() {
-  const { state, progress } = usePrinter()
+  const state = usePrinterStore((s) => s.state)
+  const progress = usePrinterStore((s) => s.progress)
   const { toast } = useToast()
   const [actionLoading, setActionLoading] = useState(false)
 

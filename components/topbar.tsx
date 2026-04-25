@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Wifi, Printer } from "lucide-react";
+import { usePrinterStore } from "@/store/printerStore";
 
 interface WifiStatus {
   ssid: string | null;
@@ -18,37 +19,41 @@ interface PrinterStatus {
 
 export default function TopBar() {
   const [wifi, setWifi] = useState<WifiStatus>({ ssid: null, signal: 0 });
-  const [printer, setPrinter] = useState<PrinterStatus>({
-    state: "idle",
-    progress: 0,
-    nozzle: 0,
-    bed: 0,
-    chamber: 0,
-  });
   const [loading, setLoading] = useState(true);
 
+  // Get real-time printer data from Zustand store (updated via WebSocket)
+  const printerState = usePrinterStore((state) => state.state);
+  const progress = usePrinterStore((state) => state.progress);
+  const nozzleTemp = usePrinterStore((state) => state.nozzleTemp);
+  const bedTemp = usePrinterStore((state) => state.bedTemp);
+  const wsConnected = usePrinterStore((state) => state.wsConnected);
+
+  // Create printer status object from store data
+  const printer: PrinterStatus = {
+    state: printerState as "printing" | "paused" | "idle" | "error",
+    progress,
+    nozzle: nozzleTemp,
+    bed: bedTemp,
+    chamber: 0,
+  };
+
   useEffect(() => {
-    const load = async () => {
+    const loadWifi = async () => {
       try {
-        const [wifiRes, printerRes] = await Promise.all([
-          fetch("/api/wifi/current"),
-          fetch("/api/printer/status"),
-        ]);
-
+        const wifiRes = await fetch("/api/wifi/current");
         const wifiData = await wifiRes.json();
-        const printerData = await printerRes.json();
-
         setWifi(wifiData);
-        setPrinter(printerData);
       } catch (err) {
-        console.error("Failed to load status:", err);
+        console.error("Failed to load WiFi status:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    load();
-    const interval = setInterval(load, 3000);
+    loadWifi();
+    
+    // Only poll WiFi status (printer data comes from WebSocket)
+    const interval = setInterval(loadWifi, 10000);
     return () => clearInterval(interval);
   }, []);
 

@@ -23,7 +23,10 @@ function formatTime(seconds: number): string {
 
 export default function HomePage() {
   const [loading, setLoading] = useState(true);
-  const { activePrinter, pausePrint, resumePrint, cancelPrint } = usePrinter();
+  const activePrinter = usePrinterStore((s) => s.activePrinter)
+  const pausePrint = usePrinterStore((s) => s.pausePrint)
+  const resumePrint = usePrinterStore((s) => s.resumePrint)
+  const cancelPrint = usePrinterStore((s) => s.cancelPrint)
   const status = useStatus();
   const online = useNetwork();
   const backend = useBackend();

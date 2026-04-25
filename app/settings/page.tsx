@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { usePrinter } from "@/store/printerStore";
+import { usePrinterStore } from "@/store/printerStore";
 import { updateSystem, getUpdateStatus, UpdateStatus } from "@/lib/api";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
@@ -30,7 +30,9 @@ import { useLoading } from "@/components/useLoading";
 import { useToastStore } from "@/components/toast-store";
 
 export default function SettingsPage() {
-  const { printers, addPrinter, removePrinter } = usePrinter();
+  const printers = usePrinterStore((s) => s.printers);
+  const addPrinter = usePrinterStore((s) => s.addPrinter);
+  const removePrinter = usePrinterStore((s) => s.removePrinter);
   const [darkMode, setDarkMode] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);

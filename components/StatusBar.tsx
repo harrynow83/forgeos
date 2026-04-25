@@ -1,11 +1,17 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { usePrinter } from '@/store/printerStore'
-import { Activity, Thermometer, Wifi } from 'lucide-react'
+import { usePrinterStore } from '@/store/printerStore'
+import { Activity, Thermometer, Wifi, WifiOff } from 'lucide-react'
 
 export function StatusBar() {
-  const { state, progress, nozzleTemp, bedTemp, connected, loading } = usePrinter()
+  const state = usePrinterStore((s) => s.state)
+  const progress = usePrinterStore((s) => s.progress)
+  const nozzleTemp = usePrinterStore((s) => s.nozzleTemp)
+  const bedTemp = usePrinterStore((s) => s.bedTemp)
+  const connected = usePrinterStore((s) => s.connected)
+  const loading = usePrinterStore((s) => s.loading)
+  const wsConnected = usePrinterStore((s) => s.wsConnected)
 
   const getStateColor = () => {
     switch (state) {
@@ -76,11 +82,26 @@ export function StatusBar() {
         </div>
 
         {/* Connection */}
-        <div className="flex items-center gap-2">
-          <Wifi className={`w-4 h-4 ${connected ? 'text-green-400' : 'text-red-400'}`} />
-          <span className="text-xs text-gray-400">
-            {connected ? 'Connected' : 'Disconnected'}
-          </span>
+        <div className="flex items-center gap-4">
+          {/* WebSocket Connection */}
+          <div className="flex items-center gap-2">
+            {wsConnected ? (
+              <Wifi className="w-4 h-4 text-green-400" />
+            ) : (
+              <WifiOff className="w-4 h-4 text-red-400" />
+            )}
+            <span className="text-xs text-gray-400">
+              {wsConnected ? 'Live' : 'Offline'}
+            </span>
+          </div>
+          
+          {/* Printer Connection */}
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'} ${wsConnected ? 'animate-pulse' : ''}`} />
+            <span className="text-xs text-gray-400">
+              {connected ? 'Printer' : 'No Printer'}
+            </span>
+          </div>
         </div>
       </div>
     </motion.div>

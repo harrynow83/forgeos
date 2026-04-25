@@ -30,6 +30,10 @@ interface PrinterStore {
   bedTemp: number;
   connected: boolean;
   loading: boolean;
+  wsConnected: boolean;
+  isOnline: boolean;
+  connectionStatus: "connected" | "disconnected" | "reconnecting";
+  lastSyncTime: number | null;
   printers: Printer[];
   activePrinter: Printer;
   files: PrinterFile[];
@@ -42,15 +46,23 @@ interface PrinterStore {
   addPrinter: (printer: Omit<Printer, "id">) => void;
   removePrinter: (id: string) => void;
   setData: (data: Partial<PrinterStore>) => void;
+  setWsConnected: (connected: boolean) => void;
+  setIsOnline: (online: boolean) => void;
+  setConnectionStatus: (status: "connected" | "disconnected" | "reconnecting") => void;
+  updateLastSyncTime: () => void;
 }
 
-export const usePrinter = create<PrinterStore>((set, get) => ({
+export const usePrinterStore = create<PrinterStore>((set, get) => ({
   state: "ready",
   progress: 0,
   nozzleTemp: 0,
   bedTemp: 0,
   connected: false,
   loading: false,
+  wsConnected: false,
+  isOnline: true,
+  connectionStatus: "disconnected",
+  lastSyncTime: null,
   printers: [] as Printer[],
   activePrinter: {
     id: "",
@@ -61,41 +73,85 @@ export const usePrinter = create<PrinterStore>((set, get) => ({
   files: [] as PrinterFile[],
 
   pausePrint: async () => {
-    await fetch("/api/printer/pause", { method: "POST" });
+    if (typeof window !== 'undefined') {
+      await fetch("/api/printer/pause", { method: "POST" });
+    }
   },
 
   resumePrint: async () => {
-    await fetch("/api/printer/resume", { method: "POST" });
+    if (typeof window !== 'undefined') {
+      await fetch("/api/printer/resume", { method: "POST" });
+    }
   },
 
   cancelPrint: async () => {
-    await fetch("/api/printer/cancel", { method: "POST" });
+    if (typeof window !== 'undefined') {
+      await fetch("/api/printer/cancel", { method: "POST" });
+    }
   },
 
   startPrint: async (filename: string) => {
-    await fetch("/api/printer/start", { 
-      method: "POST", 
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename })
-    });
+    if (typeof window !== 'undefined') {
+      await fetch("/api/printer/start", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename })
+      });
+    }
   },
 
   completeSetup: async () => {
-    await fetch("/api/setup_done", { method: "POST" });
+    if (typeof window !== 'undefined') {
+      await fetch("/api/setup_done", { method: "POST" });
+    }
   },
 
   setActivePrinter: (printer: Printer) => {
-    set({ activePrinter: printer });
+    if (typeof window !== 'undefined') {
+      set({ activePrinter: printer });
+    }
   },
 
   addPrinter: (printer: Omit<Printer, "id">) => {
-    const newPrinter = { ...printer, id: Date.now().toString() };
-    set((state) => ({ printers: [...state.printers, newPrinter] }));
+    if (typeof window !== 'undefined') {
+      const newPrinter = { ...printer, id: Date.now().toString() };
+      set((state) => ({ printers: [...state.printers, newPrinter] }));
+    }
   },
 
   removePrinter: (id: string) => {
-    set((state) => ({ printers: state.printers.filter((p) => p.id !== id) }));
+    if (typeof window !== 'undefined') {
+      set((state) => ({ printers: state.printers.filter((p) => p.id !== id) }));
+    }
   },
 
-  setData: (data) => set((state) => ({ ...state, ...data })),
+  setData: (data) => {
+    if (typeof window !== 'undefined') {
+      set((state) => ({ ...state, ...data }));
+    }
+  },
+
+  setWsConnected: (connected: boolean) => {
+    if (typeof window !== 'undefined') {
+      set({ wsConnected: connected });
+    }
+  },
+
+  setIsOnline: (online: boolean) => {
+    if (typeof window !== 'undefined') {
+      set({ isOnline: online });
+    }
+  },
+
+  setConnectionStatus: (status: "connected" | "disconnected" | "reconnecting") => {
+    if (typeof window !== 'undefined') {
+      set({ connectionStatus: status });
+    }
+  },
+
+  updateLastSyncTime: () => {
+    if (typeof window !== 'undefined') {
+      set({ lastSyncTime: Date.now() });
+    }
+  },
 }));
